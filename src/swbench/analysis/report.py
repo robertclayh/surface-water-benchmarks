@@ -25,11 +25,20 @@ def _fmt(v, digits: int = 3) -> str:
     return str(v)
 
 
+INT_COLUMNS = {"label_budget", "params_total", "params_trainable", "n_seeds", "n_pairs"}
+
+
 def _md_table(df: pd.DataFrame, digits: int = 3) -> str:
     cols = list(df.columns)
     lines = ["| " + " | ".join(cols) + " |", "|" + "|".join("---" for _ in cols) + "|"]
-    for _, r in df.iterrows():
-        lines.append("| " + " | ".join(_fmt(r[c], digits) for c in cols) + " |")
+    for r in df.to_dict("records"):
+        cells = []
+        for c in cols:
+            v = r[c]
+            if c in INT_COLUMNS and isinstance(v, float) and v.is_integer():
+                v = int(v)
+            cells.append(_fmt(v, digits))
+        lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines)
 
 

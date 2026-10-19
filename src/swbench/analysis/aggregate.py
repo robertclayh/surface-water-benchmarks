@@ -57,8 +57,13 @@ def paired_delta(df: pd.DataFrame, arm: str, baseline: str, split: str, metric: 
     return pd.DataFrame(rows)
 
 
+MIN_SEEDS_FOR_CI = 3
+
+
 def _bootstrap_mean_ci(vals: np.ndarray, n: int = 5000, seed: int = 0, alpha: float = 0.05) -> tuple[float, float]:
-    if len(vals) < 2:
+    # With fewer than three seeds a bootstrap "interval" is just the range of
+    # one or two numbers; report no interval rather than a misleading one.
+    if len(vals) < MIN_SEEDS_FOR_CI:
         return float("nan"), float("nan")
     rng = np.random.default_rng(seed)
     means = vals[rng.integers(0, len(vals), size=(n, len(vals)))].mean(1)
@@ -124,7 +129,8 @@ def cost_table(df: pd.DataFrame, profiles: pd.DataFrame | None = None) -> pd.Dat
         cols["test_infer_seconds"] = "mean"
     out = df.groupby("arm").agg({k: v for k, v in cols.items() if k in df}).reset_index()
     if profiles is not None and not profiles.empty:
-        out = out.merge(profiles, on="arm", how="left", suffixes=("", "_profile"))
+        profiles = profiles.drop(columns=[c for c in profiles.columns if c != "arm" and c in out.columns])
+        out = out.merge(profiles, on="arm", how="left")
         if "gflops_train_per_tile" in out and {"steps", "batch_size"} <= set(df):
             samples = df.groupby("arm").apply(lambda g: (g.steps * g.batch_size).mean(), include_groups=False)
             out["train_pflops_per_run"] = out.arm.map(samples) * out.gflops_train_per_tile / 1e6
@@ -145,7 +151,8 @@ def verdicts(
       above ``min_gain`` (default 2 IoU points).
     * ``not justified``: the CI lies entirely below ``min_gain`` (the gain is
       too small to matter, or negative).
-    * ``inconclusive``: the CI straddles ``min_gain``; more seeds are needed.
+    * ``inconclusive``: the CI straddles ``min_gain``, or fewer than three
+      matched seeds exist; more seeds are needed.
 
     The extra training compute per IoU point is reported alongside, so a
     reader with a different exchange rate between accuracy and compute can
@@ -171,9 +178,10 @@ def verdicts(
             "delta_iou": r.delta_mean,
             "delta_lo": r.delta_lo,
             "delta_hi": r.delta_hi,
-            "wins": f"{r.wins}/{r.n_pairs}",
+            "wins": f"{int(r.wins)}/{int(r.n_pairs)}",
             "extra_train_seconds": extra,
-            "extra_train_seconds_per_iou_point": extra / pts if pts > 0 else np.inf,
+            # Undefined (shown as "–") when there is no gain to pay for.
+            "extra_train_seconds_per_iou_point": extra / pts if pts > 0 else np.nan,
             "verdict": verdict,
         })
     return pd.DataFrame(rows)

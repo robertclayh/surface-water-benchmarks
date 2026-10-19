@@ -59,3 +59,9 @@ def test_report_writes_markdown_and_figures(tmp_path):
     text = path.read_text()
     assert "label_multiplier" in text and "justified" in text
     assert (tmp_path / "out" / "figures" / "label_efficiency.png").exists()
+
+
+def test_two_seeds_never_yield_a_verdict():
+    df = _synthetic()
+    v = verdicts(df[df.seed < 2], "fm", "unet13", "test")
+    assert (v.verdict == "inconclusive").all()
