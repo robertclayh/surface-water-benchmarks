@@ -1,0 +1,13 @@
+_base_: ../base.yaml
+name: clay_finetune
+model:
+  arch: clay
+  protocol: finetune
+  bands: clay10
+  kwargs:
+    size: large
+    out_indices: [5, 11, 17, 23]
+    ckpt_path: null
+train:
+  lr: 1.0e-3
+  encoder_lr: 2.0e-5

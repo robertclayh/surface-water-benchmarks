@@ -1,0 +1,12 @@
+_base_: ../base.yaml
+name: clay_frozen
+model:
+  arch: clay
+  protocol: frozen
+  bands: clay10
+  kwargs:
+    size: large
+    out_indices: [5, 11, 17, 23]
+    ckpt_path: null     # null = download made-with-clay/Clay v1.5/clay-v1.5.ckpt
+train:
+  lr: 1.0e-3

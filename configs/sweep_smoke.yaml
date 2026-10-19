@@ -1,0 +1,8 @@
+# Minutes-on-a-laptop sanity sweep: tiny step budget, CPU-friendly arms only.
+arms: [unet6, simple_vit_scratch]
+label_budgets: [8, 32]
+seeds: [0, 1]
+common:
+  train: {steps: 30, eval_every: 15, batch_size: 4}
+  data: {val_chips: 8, workers: 0}
+  eval: {bootstrap: 200, max_chips: 6}

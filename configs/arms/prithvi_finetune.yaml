@@ -1,0 +1,13 @@
+_base_: ../base.yaml
+name: prithvi_finetune
+model:
+  arch: prithvi
+  protocol: finetune    # encoder trained end to end at a lower LR
+  bands: prithvi6
+  kwargs:
+    variant: prithvi_eo_v2_300
+    out_indices: [5, 11, 17, 23]
+    ckpt_path: null
+train:
+  lr: 1.0e-3
+  encoder_lr: 2.0e-5

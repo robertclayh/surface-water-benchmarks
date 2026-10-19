@@ -1,0 +1,6 @@
+# The full grid: 6 arms x 6 label budgets x 5 seeds = 180 runs.
+# Budgets are nested per seed (N=8 is a subset of N=16, ...); 252 = all chips.
+arms: [unet13, unet6, prithvi_frozen, prithvi_finetune, clay_frozen, clay_finetune]
+label_budgets: [8, 16, 32, 64, 128, 252]
+seeds: [0, 1, 2, 3, 4]
+common: {}

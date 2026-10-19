@@ -1,0 +1,27 @@
+# Shared protocol. Every arm inherits this; arms override only the model block
+# and their learning rates. See docs/PROTOCOL.md for the reasoning.
+data:
+  root: data/sen1floods11
+  crop_size: 224        # native input size of both foundation models
+  val_chips: null       # null = full Sen1Floods11 valid split (89 chips)
+  workers: 4
+
+train:
+  steps: 2000           # fixed optimiser-step budget, independent of label budget
+  batch_size: 8
+  warmup_steps: 100
+  weight_decay: 0.05
+  dice_weight: 1.0      # loss = cross-entropy + dice on water
+  grad_clip: 1.0
+  eval_every: 200
+  amp: true             # bf16 autocast on CUDA
+
+eval:
+  tile: 224
+  overlap: 32
+  batch_size: 2
+  bootstrap: 1000
+  splits: [valid, test, bolivia]
+
+seed: 0
+label_budget: null      # null = all 252 training chips

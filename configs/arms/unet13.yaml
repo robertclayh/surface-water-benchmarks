@@ -1,0 +1,9 @@
+_base_: ../base.yaml
+name: unet13
+model:
+  arch: unet
+  protocol: scratch
+  bands: s1f11_13       # all 13 bands: the strongest practical from-scratch baseline
+  kwargs: {base_width: 32, depth: 4, dropout: 0.1}
+train:
+  lr: 1.0e-3

@@ -1,0 +1,12 @@
+_base_: ../base.yaml
+name: prithvi_frozen
+model:
+  arch: prithvi
+  protocol: frozen      # encoder weights fixed; only the decoder is trained
+  bands: prithvi6
+  kwargs:
+    variant: prithvi_eo_v2_300
+    out_indices: [5, 11, 17, 23]
+    ckpt_path: null     # null = download ibm-nasa-geospatial/Prithvi-EO-2.0-300M
+train:
+  lr: 1.0e-3

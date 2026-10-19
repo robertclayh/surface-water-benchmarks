@@ -1,0 +1,11 @@
+# Not a benchmarked arm: small random-init ViT with the same decoder, used for
+# CPU smoke tests and as a "ViT without pretraining" sanity check.
+_base_: ../base.yaml
+name: simple_vit_scratch
+model:
+  arch: simple_vit
+  protocol: scratch
+  bands: prithvi6
+  kwargs: {embed_dim: 192, depth: 6, heads: 3, patch_size: 16}
+train:
+  lr: 5.0e-4
