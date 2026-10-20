@@ -21,7 +21,7 @@ def train_main(argv: list[str] | None = None) -> None:
     ap.add_argument("config", help="arm config, e.g. configs/arms/prithvi_finetune.yaml")
     ap.add_argument("--out", default="runs")
     ap.add_argument("overrides", nargs="*", help="dotted overrides, e.g. label_budget=16 seed=1 train.steps=500")
-    args = ap.parse_args(argv)
+    args = ap.parse_intermixed_args(argv)
 
     from swbench.train.engine import run
 
@@ -39,7 +39,7 @@ def sweep_main(argv: list[str] | None = None) -> None:
     ap.add_argument("--shard", default="0/1", help="i/n: run every n-th cell starting at i (one shard per GPU)")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("overrides", nargs="*")
-    args = ap.parse_args(argv)
+    args = ap.parse_intermixed_args(argv)
 
     sweep_path = Path(args.sweep)
     sweep = yaml.safe_load(sweep_path.read_text())

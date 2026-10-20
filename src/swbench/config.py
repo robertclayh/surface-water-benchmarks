@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from pathlib import Path
 from typing import Any
 
@@ -39,5 +40,13 @@ def apply_overrides(cfg: dict, overrides: list[str]) -> dict:
         *parents, leaf = key.split(".")
         for p in parents:
             node = node.setdefault(p, {})
-        node[leaf] = yaml.safe_load(raw)
+        node[leaf] = _parse_scalar(raw)
     return cfg
+
+
+_SCI = re.compile(r"[-+]?(\d+\.?\d*|\.\d+)[eE][-+]?\d+")
+
+
+def _parse_scalar(raw: str) -> Any:
+    # PyYAML follows YAML 1.1, where "3e-4" (no dot) is a string, not a float.
+    return float(raw) if _SCI.fullmatch(raw) else yaml.safe_load(raw)

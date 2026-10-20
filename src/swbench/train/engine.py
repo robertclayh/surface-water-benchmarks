@@ -177,6 +177,8 @@ def run(cfg: dict[str, Any], out_dir: str | Path) -> dict[str, Any]:
         if step % eval_every == 0 or step == steps:
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
+            elif device.type == "mps":
+                torch.mps.synchronize()
             train_seconds += time.perf_counter() - t_seg
             val = evaluate(model, val_loader, device, tile, overlap, amp=amp).compute()
             history.append({"step": step, "loss": float(loss.item()), **{f"val_{k}": v for k, v in val.items()}})
@@ -211,7 +213,7 @@ def run(cfg: dict[str, Any], out_dir: str | Path) -> dict[str, Any]:
         "train_peak_mem_gb": peak_mem,
         "run_energy_kwh": meter.kwh if meter else None,
         "energy_method": meter.method if meter else "unavailable",
-        "device": gpu_name() if device.type == "cuda" else "cpu",
+        "device": gpu_name() if device.type == "cuda" else device.type,
         **count_parameters(model),
     }
     per_chip = {}

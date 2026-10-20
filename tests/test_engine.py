@@ -15,6 +15,9 @@ def test_config_inheritance_and_overrides():
     assert cfg["train"]["steps"] == 2000 and cfg["train"]["encoder_lr"] == 2e-5
     cfg = apply_overrides(cfg, ["train.steps=5", "label_budget=8", "data.val_chips=null"])
     assert cfg["train"]["steps"] == 5 and cfg["label_budget"] == 8 and cfg["data"]["val_chips"] is None
+    cfg = apply_overrides(cfg, ["train.lr=3e-4", "train.encoder_lr=1E-5", "eval.splits=[valid]", "name=1e3x"])
+    assert cfg["train"]["lr"] == 3e-4 and cfg["train"]["encoder_lr"] == 1e-5
+    assert cfg["eval"]["splits"] == ["valid"] and cfg["name"] == "1e3x"
     assert deep_merge({"a": {"b": 1, "c": 2}}, {"a": {"b": 3}}) == {"a": {"b": 3, "c": 2}}
 
 
