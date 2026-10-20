@@ -106,12 +106,33 @@ Pretrained weights are downloaded from Hugging Face on first use
 A CPU-only sanity check of the whole pipeline on real chips (minutes, not a
 result): `swbench-sweep configs/sweep_smoke.yaml --out runs_smoke`.
 
+### On a Slurm cluster
+
+`slurm/` runs the same pipeline as array jobs. Defaults target UVA
+Rivanna/Afton (`gpu` partition, one A100 80GB per task); set your allocation
+and any site differences in [slurm/env.sh](slurm/env.sh).
+
+```bash
+bash slurm/setup.sh                    # login node: venv, data and weights on /scratch, tests
+slurm/submit.sh lr                     # 15 LR-tuning runs (valid split only)
+python scripts/summarize_lr.py /scratch/$USER/swbench/runs_lr   # commit the chosen LRs to configs/arms/
+slurm/submit.sh sweep                  # 6 array jobs x 30 cells; rerun to fill in any that failed
+slurm/submit.sh cost                   # latency / throughput -> results/profiles.csv
+swbench-report --runs /scratch/$USER/swbench/runs --out results --profiles results/profiles.csv
+```
+
+Every arm runs on the same GPU type so the training-time and energy columns
+are comparable; the report lists the device(s) it found. Copy the run
+directories off `/scratch` when the sweep finishes: they are the provenance
+for every number in the report.
+
 ## Repository layout
 
 ```
 configs/            base protocol, one YAML per arm, sweep grids
 docs/               PROTOCOL.md (fine-tuning protocol), COST_ACCOUNTING.md
-scripts/            dataset download, band statistics
+scripts/            dataset download, band statistics, LR-tuning summary
+slurm/              cluster setup and array jobs (LR tuning, sweep, cost profiling)
 src/swbench/
   data/             Sen1Floods11 loader, band specs and normalisation
   models/           U-Net, Prithvi / Clay adapters, shared ViT decoder

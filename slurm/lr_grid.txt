@@ -1,0 +1,20 @@
+# Learning-rate grid, tuned once per arm family on all 252 training chips and
+# the valid split only (docs/PROTOCOL.md#learning-rates). One run per line:
+#   <tag> <arm> <overrides...>
+# The winning values go into configs/arms/*.yaml before the main sweep; unet6
+# uses unet13's choice.
+lr3e-4 unet13 train.lr=3e-4
+lr1e-3 unet13 train.lr=1e-3
+lr3e-3 unet13 train.lr=3e-3
+lr3e-4 prithvi_frozen train.lr=3e-4
+lr1e-3 prithvi_frozen train.lr=1e-3
+lr3e-3 prithvi_frozen train.lr=3e-3
+lr3e-4 clay_frozen train.lr=3e-4
+lr1e-3 clay_frozen train.lr=1e-3
+lr3e-3 clay_frozen train.lr=3e-3
+elr1e-5 prithvi_finetune train.encoder_lr=1e-5
+elr2e-5 prithvi_finetune train.encoder_lr=2e-5
+elr5e-5 prithvi_finetune train.encoder_lr=5e-5
+elr1e-5 clay_finetune train.encoder_lr=1e-5
+elr2e-5 clay_finetune train.encoder_lr=2e-5
+elr5e-5 clay_finetune train.encoder_lr=5e-5
