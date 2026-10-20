@@ -6,4 +6,4 @@ model:
   bands: s1f11_13       # all 13 bands: the strongest practical from-scratch baseline
   kwargs: {base_width: 32, depth: 4, dropout: 0.1}
 train:
-  lr: 1.0e-3
+  lr: 3.0e-3            # tuned on valid: 3e-4 .837, 1e-3 .839, 3e-3 .842, 1e-2 .809

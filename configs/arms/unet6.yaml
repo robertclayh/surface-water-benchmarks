@@ -6,4 +6,4 @@ model:
   bands: s1f11_6        # Prithvi's six bands: isolates pretraining from band choice
   kwargs: {base_width: 32, depth: 4, dropout: 0.1}
 train:
-  lr: 1.0e-3
+  lr: 3.0e-3            # unet13's tuned value (same family)

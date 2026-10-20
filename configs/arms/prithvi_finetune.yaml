@@ -10,4 +10,4 @@ model:
     ckpt_path: null
 train:
   lr: 1.0e-3
-  encoder_lr: 2.0e-5
+  encoder_lr: 2.0e-5    # tuned on valid: 1e-5 .814, 2e-5 .815, 5e-5 .812
