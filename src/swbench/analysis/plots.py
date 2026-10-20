@@ -15,6 +15,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
+from matplotlib.ticker import FuncFormatter, NullFormatter  # noqa: E402
 
 from swbench.analysis.aggregate import summarize  # noqa: E402
 
@@ -50,11 +51,25 @@ def _axes_style(ax) -> None:
     ax.set_axisbelow(True)
 
 
+def _spread(y, min_gap: float):
+    """Label positions near ``y`` that are at least ``min_gap`` apart (order kept)."""
+    order = sorted(range(len(y)), key=lambda i: y[i])
+    pos = [float(y[i]) for i in order]
+    for k in range(1, len(pos)):
+        pos[k] = max(pos[k], pos[k - 1] + min_gap)
+    shift = (sum(pos) - sum(float(y[i]) for i in order)) / max(len(pos), 1)
+    out = [0.0] * len(y)
+    for k, i in enumerate(order):
+        out[i] = pos[k] - shift  # re-centre so labels stay next to their lines
+    return out
+
+
 def label_efficiency_plot(df: pd.DataFrame, out: str | Path, splits=("test", "bolivia"), metric: str = "iou_water"):
     out = Path(out)
     fig, axes = plt.subplots(1, len(splits), figsize=(6.2 * len(splits), 4.4), sharey=True)
     axes = [axes] if len(splits) == 1 else list(axes)
     arms = sorted(df.arm.unique())
+    line_ends = []
     for ax, split in zip(axes, splits, strict=True):
         s = summarize(df, split, metric)
         for arm in arms:
@@ -66,9 +81,7 @@ def label_efficiency_plot(df: pd.DataFrame, out: str | Path, splits=("test", "bo
                     mec="white", mew=1.5, label=arm)
             if (a.n_seeds > 1).any():
                 ax.fill_between(a.label_budget, a["min"], a["max"], color=color, alpha=0.12, lw=0)
-            last = a.iloc[-1]
-            ax.annotate(arm, (last.label_budget, last["mean"]), xytext=(6, 0), textcoords="offset points",
-                        va="center", fontsize=8, color=INK)
+        line_ends.append((ax, s.sort_values("label_budget").groupby("arm").last()))
         ax.set_xscale("log", base=2)
         budgets = sorted(df.label_budget.unique())
         ax.set_xticks(budgets, [str(b) for b in budgets])
@@ -76,6 +89,13 @@ def label_efficiency_plot(df: pd.DataFrame, out: str | Path, splits=("test", "bo
         ax.set_title(SPLIT_TITLE.get(split, split), color=INK, fontsize=11, loc="left")
         _axes_style(ax)
         ax.set_xlim(right=max(budgets) * 2.2)
+    # Direct labels last: the shared y-range is only final once every panel is drawn.
+    lo, hi = axes[0].get_ylim()
+    for ax, ends in line_ends:
+        for arm, y in zip(ends.index, _spread(ends["mean"].to_numpy(), 0.045 * (hi - lo)), strict=True):
+            x = ends.loc[arm, "label_budget"]
+            ax.annotate(arm, (x, ends.loc[arm, "mean"]), xytext=(x * 1.15, y), textcoords="data",
+                        va="center", fontsize=8, color=INK)
     axes[0].set_ylabel("Water IoU (mean over seeds; band = min-max)", color=INK, fontsize=10)
     axes[0].legend(frameon=False, fontsize=8, loc="lower right")
     fig.tight_layout()
@@ -84,19 +104,38 @@ def label_efficiency_plot(df: pd.DataFrame, out: str | Path, splits=("test", "bo
     plt.close(fig)
 
 
-def cost_accuracy_plot(df: pd.DataFrame, out: str | Path, split: str = "test", budget: int | None = None):
-    """Training seconds (log) against water IoU at one label budget."""
+def cost_accuracy_plot(
+    df: pd.DataFrame,
+    out: str | Path,
+    split: str = "test",
+    budget: int | None = None,
+    train_pflops: dict[str, float] | None = None,
+):
+    """Training cost (log) against water IoU at one label budget.
+
+    Cost is training PFLOPs per run when ``train_pflops`` is given (measured
+    seconds can be set by data loading rather than the model; see
+    docs/COST_ACCOUNTING.md), otherwise measured training seconds.
+    """
     out = Path(out)
     budget = budget or int(df.label_budget.min())
     sub = df[df.label_budget == budget]
     g = sub.groupby("arm").agg(secs=("train_seconds", "mean"), iou=(f"{split}_iou_water", "mean")).reset_index()
+    if train_pflops is not None:
+        g["cost"] = g.arm.map(train_pflops)
+        xlabel = "Training compute per run (PFLOPs, log scale)"
+    else:
+        g["cost"] = g.secs
+        xlabel = "Training seconds per run (log scale)"
     fig, ax = plt.subplots(figsize=(6.2, 4.4))
     for _, r in g.iterrows():
         color, _, marker = _style(r.arm, df)
-        ax.scatter(r.secs, r.iou, s=80, color=color, marker=marker, edgecolor="white", linewidth=1.5, zorder=3)
-        ax.annotate(r.arm, (r.secs, r.iou), xytext=(7, 4), textcoords="offset points", fontsize=8, color=INK)
+        ax.scatter(r.cost, r.iou, s=80, color=color, marker=marker, edgecolor="white", linewidth=1.5, zorder=3)
+        ax.annotate(r.arm, (r.cost, r.iou), xytext=(7, 4), textcoords="offset points", fontsize=8, color=INK)
     ax.set_xscale("log")
-    ax.set_xlabel("Training seconds per run (log scale)", color=INK, fontsize=10)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.xaxis.set_minor_formatter(NullFormatter())
+    ax.set_xlabel(xlabel, color=INK, fontsize=10)
     ax.set_ylabel(f"Water IoU, {SPLIT_TITLE.get(split, split)}", color=INK, fontsize=10)
     ax.set_title(f"Cost vs. accuracy at N = {budget} labelled chips", color=INK, fontsize=11, loc="left")
     _axes_style(ax)
