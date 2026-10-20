@@ -18,3 +18,8 @@ elr5e-5 prithvi_finetune train.encoder_lr=5e-5
 elr1e-5 clay_finetune train.encoder_lr=1e-5
 elr2e-5 clay_finetune train.encoder_lr=2e-5
 elr5e-5 clay_finetune train.encoder_lr=5e-5
+# Round 2: one step past each winner that landed on the edge of round 1.
+lr1e-2 unet13 train.lr=1e-2
+lr1e-4 prithvi_frozen train.lr=1e-4
+lr1e-4 clay_frozen train.lr=1e-4
+elr1e-4 clay_finetune train.encoder_lr=1e-4

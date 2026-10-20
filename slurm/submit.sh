@@ -2,7 +2,7 @@
 # Submit benchmark stages to Slurm. Run from anywhere on a login node.
 #
 #     slurm/submit.sh check              # pre-flight: GPU visible, weights load, tests pass
-#     slurm/submit.sh lr                 # learning-rate grid (slurm/lr_grid.txt), valid split only
+#     slurm/submit.sh lr [range]         # learning-rate grid (slurm/lr_grid.txt) or tasks e.g. 15-18
 #     slurm/submit.sh sweep [arm ...]    # one array job per arm, one task per (N, seed) cell
 #     slurm/submit.sh cost               # GPU latency / throughput / memory per arm
 #
@@ -25,7 +25,7 @@ case "${1:-}" in
         ;;
     lr)
         n=$(grep -cvE '^\s*(#|$)' slurm/lr_grid.txt)
-        sbatch "${common[@]}" --job-name=swb-lr --array="0-$((n - 1))" \
+        sbatch "${common[@]}" --job-name=swb-lr --array="${2:-0-$((n - 1))}" \
             --output="$logs/%x-%A_%a.out" slurm/lr_tune.sbatch
         ;;
     sweep)
