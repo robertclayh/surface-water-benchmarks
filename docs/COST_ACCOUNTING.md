@@ -63,9 +63,18 @@ What this already tells us, before any training:
 * **Frozen encoders cut training cost by ~3×** relative to fine-tuning
   (no backward through the encoder), but not inference cost.
 
-FLOPs are a proxy. Measured GPU seconds (`train_seconds`, `infer_km2_per_s`)
-also reflect memory bandwidth and kernel efficiency and are the numbers the
-report uses for verdicts.
+FLOPs are a proxy: measured GPU seconds also reflect memory bandwidth and
+kernel efficiency. But measured *training* seconds also include waiting for
+data, and on the full sweep (A100 80GB, 7 loader workers reading 13-band
+GeoTIFFs, nodes shared with other jobs) that dominated for the small arms:
+`prithvi_frozen` trained faster than `unet13` despite 2.4× the FLOPs, and
+`unet13` took 66% longer than `unet6` at the same FLOPs. The report detects
+such contradictions and says so under the cost table. The verdict tables
+therefore price training in **FLOPs** (`extra_train_pflops`,
+`extra_train_pflops_per_iou_point`) and show measured seconds alongside;
+inference is compared by `infer_km2_per_s`, which is profiled on in-memory
+tensors without data loading. GPU energy (`run_energy_kwh`) includes the
+board's idle power while it waits for data, so it shares the caveat.
 
 ## Deciding whether the overhead is justified
 
@@ -81,9 +90,11 @@ bootstrap 95% CI over seeds, and classifies it:
 * **inconclusive**: the CI straddles `min_gain`; more seeds are needed before
   claiming either way.
 
-Next to each verdict the report prints `extra_train_seconds` and
-`extra_train_seconds_per_iou_point`, so a reader with a different exchange
-rate between accuracy and compute can draw their own line, and the
+Next to each verdict the report prints `extra_train_seconds`,
+`extra_train_pflops` and `extra_train_pflops_per_iou_point` (left blank when
+there is no gain, or when the arm is not more expensive), so a reader with a
+different exchange rate between accuracy and compute can draw their own
+line, and the
 **label multiplier**: how many labelled chips the baseline needs to match the
 GFM at N (e.g. ×4 at N=16 means the U-Net needs ~64 chips). When labelling a
 chip costs an analyst an hour and a GPU-hour costs a few dollars, the label

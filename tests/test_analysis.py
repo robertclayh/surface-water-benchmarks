@@ -4,7 +4,13 @@ import math
 import numpy as np
 import pandas as pd
 
-from swbench.analysis.aggregate import equivalent_budget, label_efficiency, paired_delta, verdicts
+from swbench.analysis.aggregate import (
+    compute_bound_warnings,
+    equivalent_budget,
+    label_efficiency,
+    paired_delta,
+    verdicts,
+)
 from swbench.analysis.report import write_report
 
 
@@ -29,7 +35,8 @@ def test_equivalent_budget_interpolates_in_log2():
     n, y = np.array([8, 16, 32]), np.array([0.5, 0.6, 0.7])
     assert equivalent_budget(n, y, 0.6) == 16
     assert np.isclose(equivalent_budget(n, y, 0.55), 8 * 2**0.5)
-    assert equivalent_budget(n, y, 0.4) == 8
+    assert equivalent_budget(n, y, 0.5) == 8
+    assert equivalent_budget(n, y, 0.4) == float("-inf")  # baseline better even at N=8
     assert equivalent_budget(n, y, 0.9) == float("inf")
 
 
@@ -65,3 +72,27 @@ def test_two_seeds_never_yield_a_verdict():
     df = _synthetic()
     v = verdicts(df[df.seed < 2], "fm", "unet13", "test")
     assert (v.verdict == "inconclusive").all()
+
+
+def test_worse_arm_is_below_range_not_parity():
+    df = _synthetic()
+    le = label_efficiency(df, "unet13", "fm", "test")  # unet13 is the weaker arm here
+    assert np.isneginf(le.loc[le.label_budget == 8, "label_multiplier"]).all()
+
+
+def test_cost_per_point_uses_flops_and_is_undefined_when_cheaper():
+    df = _synthetic()
+    v = verdicts(df, "fm", "unet13", "test", train_pflops={"fm": 10.0, "unet13": 1.0})
+    assert "extra_train_seconds_per_iou_point" not in v
+    assert np.allclose(v.extra_train_pflops, 9.0)
+    assert np.allclose(v.extra_train_pflops_per_iou_point, 9.0 / (100 * v.delta_iou))
+    cheaper = verdicts(df, "fm", "unet13", "test", train_pflops={"fm": 0.5, "unet13": 1.0})
+    assert cheaper.extra_train_pflops_per_iou_point.isna().all()
+
+
+def test_compute_bound_warnings_flag_time_flop_contradictions():
+    cost = pd.DataFrame({"arm": ["small", "big"], "train_pflops_per_run": [1.0, 2.4], "train_seconds": [212.0, 179.0]})
+    (msg,) = compute_bound_warnings(cost)
+    assert "`big` needs 2.4x" in msg and "`small`" in msg
+    cost.loc[1, "train_seconds"] = 400.0
+    assert compute_bound_warnings(cost) == []

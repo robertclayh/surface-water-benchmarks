@@ -75,14 +75,18 @@ def equivalent_budget(curve_n: np.ndarray, curve_y: np.ndarray, target: float) -
     """Labels the baseline would need to reach ``target`` (log2-linear interpolation).
 
     Returns ``inf`` if the baseline never reaches it within the tested range
-    and the smallest budget if it already does at the bottom of the range.
+    and ``-inf`` if the baseline already exceeds it at the smallest budget
+    (the equivalent budget is somewhere below the tested range, not equal to
+    its bottom).
     """
     order = np.argsort(curve_n)
     n, y = np.asarray(curve_n, float)[order], np.asarray(curve_y, float)[order]
     # Make the curve monotone (running max) so interpolation is well-defined;
     # a non-monotone mean curve is seed noise, not a real loss from more labels.
     y = np.maximum.accumulate(y)
-    if target <= y[0]:
+    if target < y[0]:
+        return float("-inf")
+    if target == y[0]:
         return float(n[0])
     if target > y[-1]:
         return float("inf")
@@ -137,6 +141,29 @@ def cost_table(df: pd.DataFrame, profiles: pd.DataFrame | None = None) -> pd.Dat
     return out
 
 
+def compute_bound_warnings(cost: pd.DataFrame, min_flop_ratio: float = 1.5) -> list[str]:
+    """Pairs of arms whose measured training time contradicts their FLOPs.
+
+    If an arm needs at least ``min_flop_ratio`` x the training FLOPs of
+    another yet trains no slower, wall-clock time is set by something other
+    than model compute (data loading, shared-node contention), and seconds
+    are not a fair cost comparison between those arms.
+    """
+    if not {"train_pflops_per_run", "train_seconds"} <= set(cost):
+        return []
+    c = cost.dropna(subset=["train_pflops_per_run", "train_seconds"]).set_index("arm")
+    out = []
+    for a, ra in c.iterrows():
+        for b, rb in c.iterrows():
+            if a != b and ra.train_pflops_per_run >= min_flop_ratio * rb.train_pflops_per_run \
+                    and ra.train_seconds <= rb.train_seconds:
+                out.append(
+                    f"`{a}` needs {ra.train_pflops_per_run / rb.train_pflops_per_run:.1f}x the training FLOPs "
+                    f"of `{b}` but trained in {ra.train_seconds:.0f} s vs {rb.train_seconds:.0f} s"
+                )
+    return out
+
+
 def verdicts(
     df: pd.DataFrame,
     arm: str,
@@ -144,6 +171,7 @@ def verdicts(
     split: str,
     min_gain: float = 0.02,
     metric: str = "iou_water",
+    train_pflops: dict[str, float] | None = None,
 ) -> pd.DataFrame:
     """Is ``arm`` worth its overhead over ``baseline`` at each budget?
 
@@ -156,7 +184,9 @@ def verdicts(
 
     The extra training compute per IoU point is reported alongside, so a
     reader with a different exchange rate between accuracy and compute can
-    draw their own line.
+    draw their own line. With ``train_pflops`` (arm -> PFLOPs per run) that
+    rate is in FLOPs, which do not depend on data loading or node load;
+    otherwise in measured seconds.
     """
     d = paired_delta(df, arm, baseline, split, metric)
     secs = df.groupby(["arm", "label_budget"])["train_seconds"].mean()
@@ -173,15 +203,26 @@ def verdicts(
             verdict = "inconclusive"
         extra = secs.get((arm, n), np.nan) - secs.get((baseline, n), np.nan)
         pts = 100 * r.delta_mean
-        rows.append({
+        row = {
             "label_budget": n,
             "delta_iou": r.delta_mean,
             "delta_lo": r.delta_lo,
             "delta_hi": r.delta_hi,
             "wins": f"{int(r.wins)}/{int(r.n_pairs)}",
             "extra_train_seconds": extra,
-            # Undefined (shown as "–") when there is no gain to pay for.
-            "extra_train_seconds_per_iou_point": extra / pts if pts > 0 else np.nan,
-            "verdict": verdict,
-        })
+        }
+        if train_pflops is not None:
+            extra_pf = train_pflops.get(arm, np.nan) - train_pflops.get(baseline, np.nan)
+            row["extra_train_pflops"] = extra_pf
+            row["extra_train_pflops_per_iou_point"] = _per_point(extra_pf, pts)
+        else:
+            row["extra_train_seconds_per_iou_point"] = _per_point(extra, pts)
+        row["verdict"] = verdict
+        rows.append(row)
     return pd.DataFrame(rows)
+
+
+def _per_point(extra: float, pts: float) -> float:
+    # Undefined (shown as "–") without a gain to pay for, or without an extra
+    # cost: a ratio would be negative or infinite and mean nothing.
+    return extra / pts if pts > 0 and extra > 0 else np.nan
