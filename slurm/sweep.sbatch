@@ -10,6 +10,7 @@ set -euo pipefail
 cd "$SLURM_SUBMIT_DIR"
 source slurm/env.sh
 swb_activate
+python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'no CUDA GPU visible to PyTorch; refusing to run on CPU')"
 
 arm="$1"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader

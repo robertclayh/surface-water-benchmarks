@@ -10,6 +10,7 @@ set -euo pipefail
 cd "$SLURM_SUBMIT_DIR"
 source slurm/env.sh
 swb_activate
+python -c "import sys, torch; sys.exit(0 if torch.cuda.is_available() else 'no CUDA GPU visible to PyTorch; refusing to run on CPU')"
 
 line=$(grep -vE '^\s*(#|$)' slurm/lr_grid.txt | sed -n "$((SLURM_ARRAY_TASK_ID + 1))p")
 read -r tag arm overrides <<<"$line"
