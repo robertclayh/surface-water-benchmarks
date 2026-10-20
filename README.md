@@ -113,7 +113,8 @@ Rivanna/Afton (`gpu` partition, one A100 80GB per task); set your allocation
 and any site differences in [slurm/env.sh](slurm/env.sh).
 
 ```bash
-bash slurm/setup.sh                    # login node: venv, data and weights on /scratch, tests
+bash slurm/setup.sh                    # login node: venv, data and weights on /scratch
+slurm/submit.sh check                  # GPU node: GPU visible, weights load, tests pass
 slurm/submit.sh lr                     # 15 LR-tuning runs (valid split only)
 python scripts/summarize_lr.py /scratch/$USER/swbench/runs_lr   # commit the chosen LRs to configs/arms/
 slurm/submit.sh sweep                  # 6 array jobs x 30 cells; rerun to fill in any that failed

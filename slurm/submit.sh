@@ -1,6 +1,7 @@
 #!/bin/bash
 # Submit benchmark stages to Slurm. Run from anywhere on a login node.
 #
+#     slurm/submit.sh check              # pre-flight: GPU visible, weights load, tests pass
 #     slurm/submit.sh lr                 # learning-rate grid (slurm/lr_grid.txt), valid split only
 #     slurm/submit.sh sweep [arm ...]    # one array job per arm, one task per (N, seed) cell
 #     slurm/submit.sh cost               # GPU latency / throughput / memory per arm
@@ -19,6 +20,9 @@ logs="$SWB_SCRATCH/logs"
 common=(--account="$SWB_ACCOUNT" $SWB_GPU_FLAGS)
 
 case "${1:-}" in
+    check)
+        sbatch "${common[@]}" --job-name=swb-check --output="$logs/%x-%j.out" slurm/check.sbatch
+        ;;
     lr)
         n=$(grep -cvE '^\s*(#|$)' slurm/lr_grid.txt)
         sbatch "${common[@]}" --job-name=swb-lr --array="0-$((n - 1))" \
@@ -41,7 +45,7 @@ case "${1:-}" in
         sbatch "${common[@]}" --job-name=swb-cost --output="$logs/%x-%j.out" slurm/cost.sbatch
         ;;
     *)
-        sed -n '2,8p' "$0"
+        sed -n '2,9p' "$0"
         exit 1
         ;;
 esac
