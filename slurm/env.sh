@@ -7,7 +7,8 @@
 
 export SWB_ACCOUNT="${SWB_ACCOUNT:-CHANGE_ME}"             # your Slurm allocation (sbatch -A)
 export SWB_GPU_FLAGS="${SWB_GPU_FLAGS:---partition=gpu --gres=gpu:a100:1 --constraint=a100_80gb}"
-export SWB_MODULES="${SWB_MODULES:-miniforge}"             # provides python >= 3.10
+# Pinned: the venv is built on this Python, so a changed module default would break it.
+export SWB_MODULES="${SWB_MODULES:-miniforge/24.11.3-py3.12}"
 
 export SWB_SCRATCH="${SWB_SCRATCH:-/scratch/$USER/swbench}"
 export SWB_DATA="${SWB_DATA:-$SWB_SCRATCH/data/sen1floods11}"
