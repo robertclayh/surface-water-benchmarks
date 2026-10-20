@@ -9,4 +9,4 @@ model:
     out_indices: [5, 11, 17, 23]
     ckpt_path: null     # null = download made-with-clay/Clay v1.5/clay-v1.5.ckpt
 train:
-  lr: 1.0e-3
+  lr: 3.0e-5            # tuned on valid: 3e-5 .785, 1e-4 .779, 3e-4 .761, 1e-3 .753, 3e-3 .752 (edge; see PROTOCOL.md)

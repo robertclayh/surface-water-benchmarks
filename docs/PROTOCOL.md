@@ -85,20 +85,37 @@ Identical for every arm (`configs/base.yaml`):
 
 ### Learning rates
 
-The LRs in `configs/arms/*.yaml` are starting defaults (common values for
-U-Nets and for ViT-L fine-tuning). Before the main sweep, tune them per arm
-family on the **full training set and the validation split only** (never
-test or Bolivia), e.g.
+Learning rates are tuned once per arm family on the **full training set
+(252 chips) and the validation split only** (never test or Bolivia), seed 0,
+with the grid in `slurm/lr_grid.txt` (`slurm/submit.sh lr`, summarised by
+`scripts/summarize_lr.py`). Procedure: start from three values; while the
+best value is on the edge of the grid, add one value a step further out;
+stop after the third round and use the best value even if it is still on an
+edge. (The extension step was added after round 1; the stopping rule was
+fixed before round 3 was run.) The chosen values are committed to the arm
+configs.
 
-```bash
-for lr in 3e-4 1e-3 3e-3; do swbench-train configs/arms/unet13.yaml --out runs_lr/lr$lr train.lr=$lr eval.splits=[valid]; done
-for elr in 1e-5 2e-5 5e-5; do swbench-train configs/arms/prithvi_finetune.yaml --out runs_lr/elr$elr train.encoder_lr=$elr eval.splits=[valid]; done
-```
+Validation water IoU (chosen value in bold):
 
-and commit the chosen values to the arm configs. LRs are then **not**
-re-tuned per label budget: low-N results reflect a practitioner using
-sensible defaults, not an oracle-tuned model, and this applies to every arm
-equally.
+| arm | tuned | values tried → val IoU |
+|---|---|---|
+| `unet13` (`unet6` inherits) | `lr` | 3e-4 .837 · 1e-3 .839 · **3e-3 .842** · 1e-2 .809 |
+| `prithvi_frozen` | `lr` | 1e-4 .781 · **3e-4 .791** · 1e-3 .783 · 3e-3 .768 |
+| `prithvi_finetune` | `encoder_lr` (`lr` 1e-3) | 1e-5 .814 · **2e-5 .815** · 5e-5 .812 |
+| `clay_frozen` | `lr` | **3e-5 .785** · 1e-4 .779 · 3e-4 .761 · 1e-3 .753 · 3e-3 .752 |
+| `clay_finetune` | `encoder_lr` (`lr` 1e-3) | 1e-5 .802 · 2e-5 .806 · 5e-5 .814 · **1e-4 .818** · 2e-4 .815 |
+
+Every choice except `clay_frozen` has a worse value on both sides.
+`clay_frozen` was still improving at the low edge after the final round and
+its best checkpoint was the last one, so its frozen-protocol numbers may be
+slightly pessimistic. A plausible cause is that Clay's intermediate-layer
+tokens are taken before any normalisation and have large magnitudes; this
+was not investigated. Differences of a few thousandths of IoU are within
+single-seed noise.
+
+LRs are **not** re-tuned per label budget: low-N results reflect a
+practitioner using values tuned on full data, not an oracle-tuned model, and
+this applies to every arm equally.
 
 ### Validation set size
 
